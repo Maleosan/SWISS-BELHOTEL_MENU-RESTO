@@ -219,7 +219,7 @@ document.addEventListener("click", async (e) => {
   const a = b.dataset.do;
   if (a === "prev") flip?.flipPrev();
   if (a === "next") flip?.flipNext();
-  if (a === "open") flip?.flipNext();
+  if (a === "open") flip?.turnToPage(1);
   if (a === "out") setZoom(zoom - 0.1);
   if (a === "in") setZoom(zoom + 0.1);
   if (a === "reload") location.reload();
