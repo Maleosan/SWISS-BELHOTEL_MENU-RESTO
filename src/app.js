@@ -6,7 +6,7 @@ pdfjs.GlobalWorkerOptions.workerSrc =
 const $ = (s) => document.querySelector(s),
   $$ = (s) => document.querySelectorAll(s);
 $("#app").innerHTML =
-  `<main class="viewer"><header><div class="brand"><b>SB</b><span><strong>Swiss-Belhotel Maleosan</strong><small>Menu Restaurant</small></span></div><nav><button data-do="search" title="Cari" aria-label="Cari">⌕</button><button data-do="thumbs" title="Halaman" aria-label="Daftar halaman">▦</button><button data-do="theme" title="Tema" aria-label="Ganti tema">◐</button><button data-do="full" title="Layar penuh" aria-label="Layar penuh">⛶</button><button data-do="more" aria-label="Menu lain">•••</button><div class="menu"><button data-do="share">Bagikan</button><a href="./buku.pdf" download>Unduh PDF</a><button data-do="print">Cetak</button></div></nav></header><aside class="search" hidden><div><strong>Cari dalam menu</strong><button data-do="close">×</button></div><form><input type="search" placeholder="Nama makanan atau minuman" aria-label="Kata pencarian"><button>Cari</button></form><p class="status"></p><section class="results"></section></aside><aside class="thumbs" hidden><div><strong>Semua halaman</strong><button data-do="close">×</button></div><section></section></aside><section class="stage"><button class="arrow prev" data-do="prev" aria-label="Sebelumnya">‹</button><div id="book"></div><button class="arrow next" data-do="next" aria-label="Berikutnya">›</button><div class="loading"><i>SB</i><strong>Menyiapkan menu</strong><progress max="100" value="10"></progress><small>Mengunduh dokumen…</small></div><div class="error" hidden><strong>Menu belum dapat dimuat</strong><span>Periksa koneksi lalu coba kembali.</span><button data-do="reload">Muat ulang</button></div></section><footer><div><button data-do="prev">‹</button><input id="page" inputmode="numeric" value="1" aria-label="Nomor halaman"><span>/ <b id="count">–</b></span><button data-do="next">›</button></div><div class="zoom"><button data-do="out">−</button><input id="range" type="range" min="70" max="140" value="100" aria-label="Zoom"><button data-do="in">+</button><output>100%</output></div><small>Gunakan ← → untuk berpindah halaman</small></footer><div class="toast" role="status"></div></main>`;
+  `<main class="viewer"><header><div class="brand"><b>SB</b><span><strong>Swiss-Belhotel Maleosan</strong><small>Menu Restaurant</small></span></div><nav><button data-do="search" title="Cari" aria-label="Cari">⌕</button><button data-do="thumbs" title="Halaman" aria-label="Daftar halaman">▦</button><button data-do="theme" title="Tema" aria-label="Ganti tema">◐</button><button data-do="full" title="Layar penuh" aria-label="Layar penuh">⛶</button><button data-do="more" aria-label="Menu lain">•••</button><div class="menu"><button data-do="share">Bagikan</button><a href="./buku.pdf" download>Unduh PDF</a><button data-do="print">Cetak</button></div></nav></header><aside class="search" hidden><div><strong>Cari dalam menu</strong><button data-do="close">×</button></div><form><input type="search" placeholder="Nama makanan atau minuman" aria-label="Kata pencarian"><button>Cari</button></form><p class="status"></p><section class="results"></section></aside><aside class="thumbs" hidden><div><strong>Semua halaman</strong><button data-do="close">×</button></div><section></section></aside><section class="stage"><button class="arrow prev" data-do="prev" aria-label="Sebelumnya">‹</button><div id="book"></div><button class="cover-open" data-do="open" hidden>Buka Menu <span>→</span></button><button class="arrow next" data-do="next" aria-label="Berikutnya">›</button><div class="loading"><i>SB</i><strong>Menyiapkan menu</strong><progress max="100" value="10"></progress><small>Mengunduh dokumen…</small></div><div class="error" hidden><strong>Menu belum dapat dimuat</strong><span>Periksa koneksi lalu coba kembali.</span><button data-do="reload">Muat ulang</button></div></section><footer><div><button data-do="prev">‹</button><input id="page" inputmode="numeric" value="1" aria-label="Nomor halaman"><span>/ <b id="count">–</b></span><button data-do="next">›</button></div><div class="zoom"><button data-do="out">−</button><input id="range" type="range" min="70" max="140" value="100" aria-label="Zoom"><button data-do="in">+</button><output>100%</output></div><small>Gunakan ← → untuk berpindah halaman</small></footer><div class="toast" role="status"></div></main>`;
 let pdf,
   flip,
   pages = [],
@@ -16,6 +16,53 @@ const done = new Set(),
 function progress(n, text) {
   $("progress").value = n;
   $(".loading small").textContent = text;
+}
+function trimWhiteBorders(canvas) {
+  const context = canvas.getContext("2d", { alpha: false });
+  const { width, height } = canvas;
+  const pixels = context.getImageData(0, 0, width, height).data;
+  let left = width,
+    top = height,
+    right = 0,
+    bottom = 0;
+  const step = 3;
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const offset = (y * width + x) * 4;
+      if (pixels[offset] < 245 || pixels[offset + 1] < 245 || pixels[offset + 2] < 245) {
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
+      }
+    }
+  }
+  if (right <= left || bottom <= top) return;
+  const pad = Math.max(3, Math.round(Math.min(width, height) * 0.006));
+  left = Math.max(0, left - pad);
+  top = Math.max(0, top - pad);
+  right = Math.min(width, right + pad);
+  bottom = Math.min(height, bottom + pad);
+  const croppedWidth = right - left;
+  const croppedHeight = bottom - top;
+  if (croppedWidth < width * 0.3 || croppedHeight < height * 0.3) return;
+  const copy = document.createElement("canvas");
+  copy.width = croppedWidth;
+  copy.height = croppedHeight;
+  copy.getContext("2d", { alpha: false }).drawImage(
+    canvas,
+    left,
+    top,
+    croppedWidth,
+    croppedHeight,
+    0,
+    0,
+    croppedWidth,
+    croppedHeight,
+  );
+  canvas.width = croppedWidth;
+  canvas.height = croppedHeight;
+  canvas.getContext("2d", { alpha: false }).drawImage(copy, 0, 0);
 }
 async function render(index, type = "page") {
   const key = type + index;
@@ -40,6 +87,7 @@ async function render(index, type = "page") {
       canvasContext: target.getContext("2d", { alpha: false }),
       viewport: view,
     }).promise;
+    trimWhiteBorders(target);
     done.add(key);
   })().finally(() => busy.delete(key));
   busy.set(key, job);
@@ -52,6 +100,7 @@ function sync(i) {
   $("#page").value = i + 1;
   $$('[data-do="prev"]').forEach((b) => (b.disabled = i <= 0));
   $$('[data-do="next"]').forEach((b) => (b.disabled = i >= pdf.numPages - 1));
+  $(".cover-open").hidden = !(i === 0 && matchMedia("(orientation: landscape)").matches);
   $$("[data-thumb]").forEach((b) =>
     b.classList.toggle("active", +b.dataset.thumb === i),
   );
@@ -96,7 +145,10 @@ async function init() {
     });
     flip.loadFromHTML(pages);
     flip.on("flip", (e) => sync(e.data));
-    flip.on("changeOrientation", () => nearby(flip.getCurrentPageIndex()));
+    flip.on("changeOrientation", () => {
+      nearby(flip.getCurrentPageIndex());
+      sync(flip.getCurrentPageIndex());
+    });
     $(".thumbs section").innerHTML = pages
       .map(
         (_, i) =>
@@ -167,6 +219,7 @@ document.addEventListener("click", async (e) => {
   const a = b.dataset.do;
   if (a === "prev") flip?.flipPrev();
   if (a === "next") flip?.flipNext();
+  if (a === "open") flip?.flip(1);
   if (a === "out") setZoom(zoom - 0.1);
   if (a === "in") setZoom(zoom + 0.1);
   if (a === "reload") location.reload();
@@ -210,5 +263,8 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key === "+") setZoom(zoom + 0.1);
   if (e.key === "-") setZoom(zoom - 0.1);
+});
+matchMedia("(orientation: landscape)").addEventListener("change", () => {
+  if (flip) sync(flip.getCurrentPageIndex());
 });
 init();
