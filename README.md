@@ -16,6 +16,8 @@ Flipbook menu digital responsif untuk Swiss-Belhotel Maleosan Manado.
 
 `npm install`, lalu `npm run dev`. Untuk produksi gunakan `npm run check && npm run build`.
 
+Folder root juga menyimpan hasil build agar kompatibel dengan GitHub Pages yang menggunakan sumber `main / (root)`. Jangan mengedit file hasil build secara manual; ubah file di `src`, lalu jalankan build.
+
 ## Mengganti menu
 
 Ganti `public/buku.pdf` dengan PDF baru bernama sama, lalu build dan commit.
