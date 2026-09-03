@@ -6,11 +6,13 @@ pdfjs.GlobalWorkerOptions.workerSrc =
 const $ = (s) => document.querySelector(s),
   $$ = (s) => document.querySelectorAll(s);
 $("#app").innerHTML =
-  `<main class="viewer"><header><div class="brand"><b>SB</b><span><strong>Swiss-Belhotel Maleosan</strong><small>Menu Restaurant</small></span></div><nav><button data-do="search" title="Cari" aria-label="Cari">⌕</button><button data-do="thumbs" title="Halaman" aria-label="Daftar halaman">▦</button><button data-do="theme" title="Tema" aria-label="Ganti tema">◐</button><button data-do="full" title="Layar penuh" aria-label="Layar penuh">⛶</button><button data-do="more" aria-label="Menu lain">•••</button><div class="menu"><button data-do="share">Bagikan</button><a href="./buku.pdf" download>Unduh PDF</a><button data-do="print">Cetak</button></div></nav></header><aside class="search" hidden><div><strong>Cari dalam menu</strong><button data-do="close">×</button></div><form><input type="search" placeholder="Nama makanan atau minuman" aria-label="Kata pencarian"><button>Cari</button></form><p class="status"></p><section class="results"></section></aside><aside class="thumbs" hidden><div><strong>Semua halaman</strong><button data-do="close">×</button></div><section></section></aside><section class="stage"><button class="arrow prev" data-do="prev" aria-label="Sebelumnya">‹</button><div id="book"></div><button class="cover-open" data-do="open" hidden>Buka Menu <span>→</span></button><button class="arrow next" data-do="next" aria-label="Berikutnya">›</button><div class="loading"><i>SB</i><strong>Menyiapkan menu</strong><progress max="100" value="10"></progress><small>Mengunduh dokumen…</small></div><div class="error" hidden><strong>Menu belum dapat dimuat</strong><span>Periksa koneksi lalu coba kembali.</span><button data-do="reload">Muat ulang</button></div></section><footer><div><button data-do="prev">‹</button><input id="page" inputmode="numeric" value="1" aria-label="Nomor halaman"><span>/ <b id="count">–</b></span><button data-do="next">›</button></div><div class="zoom"><button data-do="out">−</button><input id="range" type="range" min="70" max="140" value="100" aria-label="Zoom"><button data-do="in">+</button><output>100%</output></div><small>Gunakan ← → untuk berpindah halaman</small></footer><div class="toast" role="status"></div></main>`;
+  `<main class="viewer"><header><div class="brand"><b>SB</b><span><strong>Swiss-Belhotel Maleosan</strong><small>Menu Restaurant</small></span></div><nav><button data-do="search" title="Cari" aria-label="Cari">⌕</button><button data-do="thumbs" title="Halaman" aria-label="Daftar halaman">▦</button><button data-do="theme" title="Tema" aria-label="Ganti tema">◐</button><button data-do="full" title="Layar penuh" aria-label="Layar penuh">⛶</button><button data-do="more" aria-label="Menu lain">•••</button><div class="menu"><button data-do="share">Bagikan</button><a href="./buku.pdf" download>Unduh PDF</a><button data-do="print">Cetak</button></div></nav></header><aside class="search" hidden><div><strong>Cari dalam menu</strong><button data-do="close">×</button></div><form><input type="search" placeholder="Nama makanan atau minuman" aria-label="Kata pencarian"><button>Cari</button></form><p class="status"></p><section class="results"></section></aside><aside class="thumbs" hidden><div><strong>Semua halaman</strong><button data-do="close">×</button></div><section></section></aside><section class="stage"><button class="arrow prev" data-do="prev" aria-label="Sebelumnya">‹</button><div id="book"></div><button class="cover-open" data-do="open" hidden>Buka Menu <span>→</span></button><button class="arrow next" data-do="next" aria-label="Berikutnya">›</button><div class="loading"><i>SB</i><strong>Menyiapkan menu</strong><progress max="100" value="10"></progress><small>Mengunduh dokumen…</small></div><div class="error" hidden><strong>Menu belum dapat dimuat</strong><span>Periksa koneksi lalu coba kembali.</span><button data-do="reload">Muat ulang</button></div></section><footer><div><button data-do="prev">‹</button><input id="page" inputmode="numeric" value="1" aria-label="Nomor halaman"><span>/ <b id="count">–</b></span><button data-do="next">›</button></div><div class="zoom"><button data-do="out" aria-label="Perkecil">−</button><input id="range" type="range" min="100" max="300" value="100" aria-label="Zoom"><button data-do="in" aria-label="Perbesar">+</button><output>100%</output></div><small>Gunakan ← → untuk berpindah halaman</small></footer><div class="toast" role="status"></div></main>`;
 let pdf,
   flip,
   pages = [],
-  zoom = 1;
+  zoom = 1,
+  panX = 0,
+  panY = 0;
 const done = new Set(),
   busy = new Map();
 function progress(n, text) {
@@ -104,8 +106,11 @@ function responsiveMinPageWidth() {
 }
 function nextPage() {
   if (!flip) return;
-  if (flip.getCurrentPageIndex() === 0) flip.flip(1, "bottom");
+  if (flip.getCurrentPageIndex() === 0) flip.flip(1, "top");
   else flip.flipNext("top");
+}
+function previousPage() {
+  flip?.flipPrev("top");
 }
 function sync(i) {
   $("#page").value = i + 1;
@@ -186,11 +191,103 @@ async function init() {
 function go(n) {
   if (flip) flip.flip(Math.max(0, Math.min(pdf.numPages - 1, (+n || 1) - 1)));
 }
+function applyView() {
+  const book = $("#book");
+  book.style.setProperty("--zoom", zoom);
+  book.style.setProperty("--pan-x", `${panX}px`);
+  book.style.setProperty("--pan-y", `${panY}px`);
+  book.classList.toggle("zoomed", zoom > 1.01);
+}
 function setZoom(n) {
-  zoom = Math.max(0.7, Math.min(1.4, n));
+  zoom = Math.max(1, Math.min(3, n));
+  if (zoom === 1) panX = panY = 0;
   $("#range").value = zoom * 100;
   $("output").value = Math.round(zoom * 100) + "%";
-  $("#book").style.setProperty("--zoom", zoom);
+  applyView();
+}
+function installTouchGestures() {
+  const stage = $(".stage");
+  let mode = "",
+    startX = 0,
+    startY = 0,
+    lastX = 0,
+    lastY = 0,
+    startDistance = 0,
+    startZoom = 1,
+    startPanX = 0,
+    startPanY = 0,
+    lastTap = 0;
+  const distance = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  stage.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.target.closest("button,input,a")) return;
+      e.stopImmediatePropagation();
+      if (e.touches.length === 2) {
+        mode = "pinch";
+        startDistance = distance(e.touches[0], e.touches[1]);
+        startZoom = zoom;
+        startPanX = panX;
+        startPanY = panY;
+        e.preventDefault();
+        return;
+      }
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      startX = lastX = t.clientX;
+      startY = lastY = t.clientY;
+      startPanX = panX;
+      startPanY = panY;
+      mode = zoom > 1.01 ? "pan" : "swipe";
+    },
+    { capture: true, passive: false },
+  );
+  stage.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!mode) return;
+      e.stopImmediatePropagation();
+      if (mode === "pinch" && e.touches.length >= 2) {
+        const ratio = distance(e.touches[0], e.touches[1]) / Math.max(1, startDistance);
+        setZoom(startZoom * ratio);
+      } else if (mode === "pan" && e.touches.length === 1) {
+        const t = e.touches[0];
+        panX = startPanX + t.clientX - startX;
+        panY = startPanY + t.clientY - startY;
+        lastX = t.clientX;
+        lastY = t.clientY;
+        applyView();
+      } else if (e.touches.length === 1) {
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+      }
+      e.preventDefault();
+    },
+    { capture: true, passive: false },
+  );
+  stage.addEventListener(
+    "touchend",
+    (e) => {
+      if (!mode) return;
+      e.stopImmediatePropagation();
+      const dx = lastX - startX,
+        dy = lastY - startY,
+        endedMode = mode;
+      mode = "";
+      if (endedMode === "swipe" && Math.abs(dx) >= 34 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+        dx < 0 ? nextPage() : previousPage();
+        e.preventDefault();
+        return;
+      }
+      if (endedMode === "swipe" && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+        const now = Date.now();
+        if (now - lastTap < 320) setZoom(zoom > 1.01 ? 1 : 2);
+        lastTap = now;
+      }
+    },
+    { capture: true, passive: false },
+  );
+  stage.addEventListener("touchcancel", () => (mode = ""), { capture: true });
 }
 function toast(t) {
   $(".toast").textContent = t;
@@ -228,7 +325,7 @@ document.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-do]");
   if (!b) return;
   const a = b.dataset.do;
-  if (a === "prev") flip?.flipPrev();
+  if (a === "prev") previousPage();
   if (a === "next") nextPage();
   if (a === "open") nextPage();
   if (a === "out") setZoom(zoom - 0.1);
@@ -267,7 +364,7 @@ $("#page").addEventListener("change", (e) => go(e.target.value));
 $("#range").addEventListener("input", (e) => setZoom(+e.target.value / 100));
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input")) return;
-  if (e.key === "ArrowLeft") flip?.flipPrev();
+  if (e.key === "ArrowLeft") previousPage();
   if (e.key === "ArrowRight" || e.key === " ") {
     nextPage();
     e.preventDefault();
@@ -275,11 +372,13 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "+") setZoom(zoom + 0.1);
   if (e.key === "-") setZoom(zoom - 0.1);
 });
+installTouchGestures();
 matchMedia("(orientation: landscape)").addEventListener("change", () => {
   if (!flip) return;
   flip.getSettings().minWidth = responsiveMinPageWidth();
   requestAnimationFrame(() => {
     flip.update();
+    setZoom(1);
     sync(flip.getCurrentPageIndex());
   });
 });

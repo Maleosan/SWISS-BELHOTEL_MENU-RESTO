@@ -156,7 +156,7 @@ button:disabled {
   justify-content: center;
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: pan-y;
+  touch-action: none;
   padding: 20px 68px;
 }
 .stage:before {
@@ -169,9 +169,15 @@ button:disabled {
 #book {
   width: min(86vw, 1100px);
   height: calc(100vh - 174px);
-  transform: scale(var(--zoom, 1));
+  transform: translate3d(var(--pan-x, 0), var(--pan-y, 0), 0)
+    scale(var(--zoom, 1));
   transform-origin: center;
   transition: 0.18s;
+  will-change: transform;
+  touch-action: none;
+}
+#book.zoomed {
+  transition: none;
 }
 .page {
   background: transparent;
@@ -447,7 +453,6 @@ output {
       calc(100dvh - 128px),
       calc((100vw - 88px) / var(--page-ratio, 0.7))
     );
-    transform: none;
   }
   .arrow {
     width: 36px;
@@ -460,12 +465,26 @@ output {
   .next {
     right: 3px;
   }
-  .zoom,
   .viewer > footer > small {
     display: none;
   }
+  .zoom {
+    display: flex;
+    gap: 4px;
+  }
+  .zoom input {
+    display: none;
+  }
+  .zoom button {
+    min-width: 36px;
+    height: 36px;
+  }
+  .zoom output {
+    width: 42px;
+    text-align: center;
+  }
   .viewer > footer {
-    justify-content: center;
+    justify-content: space-between;
   }
   .search,
   .thumbs {
@@ -507,7 +526,6 @@ output {
       calc(100dvh - 104px),
       calc((100vw - 104px) / (var(--page-ratio, 0.7) * 2))
     );
-    transform: none;
   }
   .search,
   .thumbs {
