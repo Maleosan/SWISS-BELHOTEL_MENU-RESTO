@@ -104,7 +104,8 @@ function responsiveMinPageWidth() {
 }
 function nextPage() {
   if (!flip) return;
-  flip.flipNext(flip.getCurrentPageIndex() === 0 ? "bottom" : "top");
+  if (flip.getCurrentPageIndex() === 0) flip.flip(1, "bottom");
+  else flip.flipNext("top");
 }
 function sync(i) {
   $("#page").value = i + 1;
