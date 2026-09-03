@@ -96,11 +96,21 @@ async function render(index, type = "page") {
 function nearby(i) {
   [i - 2, i - 1, i, i + 1, i + 2].forEach((x) => render(x));
 }
+function isPhonePortrait() {
+  return innerWidth <= 720 && innerHeight > innerWidth;
+}
+function responsiveMinPageWidth() {
+  return isPhonePortrait() ? Math.max(200, Math.ceil(innerWidth * 0.58)) : 140;
+}
+function nextPage() {
+  if (!flip) return;
+  flip.flipNext(flip.getCurrentPageIndex() === 0 ? "bottom" : "top");
+}
 function sync(i) {
   $("#page").value = i + 1;
   $$('[data-do="prev"]').forEach((b) => (b.disabled = i <= 0));
   $$('[data-do="next"]').forEach((b) => (b.disabled = i >= pdf.numPages - 1));
-  $(".cover-open").hidden = !(i === 0 && matchMedia("(orientation: landscape)").matches);
+  $(".cover-open").hidden = i !== 0;
   $$("[data-thumb]").forEach((b) =>
     b.classList.toggle("active", +b.dataset.thumb === i),
   );
@@ -131,7 +141,7 @@ async function init() {
       width: v.width,
       height: v.height,
       size: "stretch",
-      minWidth: 140,
+      minWidth: responsiveMinPageWidth(),
       maxWidth: v.width,
       minHeight: 200,
       maxHeight: v.height,
@@ -218,8 +228,8 @@ document.addEventListener("click", async (e) => {
   if (!b) return;
   const a = b.dataset.do;
   if (a === "prev") flip?.flipPrev();
-  if (a === "next") flip?.flipNext();
-  if (a === "open") flip?.turnToPage(1);
+  if (a === "next") nextPage();
+  if (a === "open") nextPage();
   if (a === "out") setZoom(zoom - 0.1);
   if (a === "in") setZoom(zoom + 0.1);
   if (a === "reload") location.reload();
@@ -258,13 +268,18 @@ document.addEventListener("keydown", (e) => {
   if (e.target.matches("input")) return;
   if (e.key === "ArrowLeft") flip?.flipPrev();
   if (e.key === "ArrowRight" || e.key === " ") {
-    flip?.flipNext();
+    nextPage();
     e.preventDefault();
   }
   if (e.key === "+") setZoom(zoom + 0.1);
   if (e.key === "-") setZoom(zoom - 0.1);
 });
 matchMedia("(orientation: landscape)").addEventListener("change", () => {
-  if (flip) sync(flip.getCurrentPageIndex());
+  if (!flip) return;
+  flip.getSettings().minWidth = responsiveMinPageWidth();
+  requestAnimationFrame(() => {
+    flip.update();
+    sync(flip.getCurrentPageIndex());
+  });
 });
 init();

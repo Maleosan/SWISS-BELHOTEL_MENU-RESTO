@@ -206,6 +206,9 @@ button:disabled {
 .cover-open span {
   margin-left: 8px;
 }
+.cover-open:not([hidden]) {
+  display: block;
+}
 .page canvas[width] ~ em {
   display: none;
 }
@@ -512,11 +515,6 @@ output {
   }
   .thumbs {
     bottom: 54px;
-  }
-}
-@media (orientation: landscape) {
-  .cover-open:not([hidden]) {
-    display: block;
   }
 }
 @media (prefers-reduced-motion: reduce) {
